@@ -1,6 +1,8 @@
 package com.example.demo.security;
 
 import com.example.demo.auth.ApplicationUserService;
+import com.example.demo.jwt.JwtConfig;
+import com.example.demo.jwt.JwtTokenVerifier;
 import com.example.demo.jwt.JwtUserNameAndPasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +18,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import javax.crypto.SecretKey;
 import java.util.concurrent.TimeUnit;
 
 import static com.example.demo.security.ApplicationUserRole.STUDENT;
@@ -27,12 +30,16 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final PasswordEncoder passwordEncoder;
     private final ApplicationUserService applicationUserService;
-
+    private final JwtConfig jwtConfig;
+    private final SecretKey secretKey;
     @Autowired
     public ApplicationSecurityConfig(PasswordEncoder passwordEncoder,
-                                     ApplicationUserService applicationUserService) {
+                                     ApplicationUserService applicationUserService,
+                                     JwtConfig jwtConfig, SecretKey secretKey) {
         this.passwordEncoder = passwordEncoder;
         this.applicationUserService = applicationUserService;
+        this.jwtConfig = jwtConfig;
+        this.secretKey = secretKey;
     }
 
 
@@ -47,7 +54,8 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionManagement()
                     .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // this is jwt configuration
                 .and()
-                .addFilter(new JwtUserNameAndPasswordAuthenticationFilter(authenticationManager())) // this is jwt configuration (this is our filter)
+                .addFilter(new JwtUserNameAndPasswordAuthenticationFilter(authenticationManager(), jwtConfig, secretKey)) // this is jwt configuration (this is our filter)
+                .addFilterAfter(new JwtTokenVerifier(secretKey, jwtConfig), JwtUserNameAndPasswordAuthenticationFilter.class) // this is a jwt configuration
                 .authorizeRequests()
                 .antMatchers("index").permitAll() // this is spring security configuration
                 .antMatchers("/api/**").hasRole(STUDENT.name())  // this is spring security configuration
